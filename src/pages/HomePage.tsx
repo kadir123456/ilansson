@@ -10,6 +10,7 @@ import { useJobFilters } from '../hooks/useJobFilters';
 import { jobCategories } from '../data/jobCategories';
 import { useAuthContext } from '../contexts/AuthContext';
 import { generateMetaTags } from '../utils/seoUtils';
+import { generateJobUrl } from '../utils/seoUtils';
 import { checkJobDates } from '../utils/dateUtils';
 import { Heart, Filter, X, Search, MapPin, Briefcase, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -38,25 +39,59 @@ export function HomePage() {
     limit: 20 // Sayfa başına 20 ilan
   });
 
-  const { filters, updateFilters, filteredJobs } = useJobFilters(jobs);
+  const { 
+    filters, 
+    updateFilters, 
+    filteredJobs, 
+    clearFilters, 
+    hasActiveFilters, 
+    isShowingSimilar 
+  } = useJobFilters(jobs);
 
   useEffect(() => {
     // SEO meta tags
     generateMetaTags({
-      title: 'İş İlanları 2025 - İstanbul Ankara İzmir Güncel İş Fırsatları',
-      description: 'Türkiye\'nin en güncel iş ilanları sitesi! İstanbul, Ankara, İzmir\'de mühendis, garson, kurye, resepsiyon görevlisi, aşçı yardımcısı, özel güvenlik pozisyonları. Ücretsiz CV oluştur, hemen başvur. 2025 kariyer fırsatları burada!',
+      title: 'İş İlanları 2025 - İşBuldum Hızlı İş Bulma Platformu',
+      description: 'İşBuldum ile hızlı iş bulun! 6 Ocak 2025 itibarıyla 50.000+ aktif iş ilanı. İstanbul, Ankara, İzmir ve tüm şehirlerde güncel iş fırsatları. Hemen başvurun, kariyerinizi şekillendirin!',
       keywords: [
-        'iş ilanları', 'istanbul iş ilanları', 'ankara iş ilanları', 'izmir iş ilanları',
+        'iş ilanları', 'güncel iş ilanları', 'iş fırsatları', 'eleman ilanları', 'kariyer', 'iş ilanları 2025',
+        'istanbul iş ilanları', 'ankara iş ilanları', 'izmir iş ilanları',
         'mühendis iş ilanları', 'garson iş ilanları', 'kurye iş ilanları', 
         'resepsiyon görevlisi iş ilanları', 'aşçı yardımcısı iş ilanları', 'özel güvenlik iş ilanları',
-        'güncel iş ilanları', 'yeni iş ilanları', 'part time iş ilanları', 'tam zamanlı iş ilanları',
-        'uzaktan çalışma iş ilanları', 'freelance iş ilanları', 'home office iş ilanları',
+        'yeni iş ilanları', 'part time iş ilanları', 'tam zamanlı iş ilanları',
+        'uzaktan çalışma iş ilanları', 'remote iş ilanları', 'freelance iş ilanları', 'home office iş ilanları',
+        'yeni mezun iş ilanları', 'deneyimsiz iş ilanları',
         'iş ara', 'iş bul', 'kariyer fırsatları', 'iş başvurusu', 'cv oluştur', 'ücretsiz cv',
         'özgeçmiş hazırlama', 'iş arama sitesi', 'eleman.net', 'kariyer.net', 'secretcv',
         'yenibiris', 'sahibinden iş ilanları', 'işkur iş ilanları', 'online iş başvurusu'
       ],
       url: window.location.pathname
     });
+
+    // Add structured data for homepage job listings
+    const jobListSchema = {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Güncel İş İlanları 2025",
+      "description": "Türkiye'nin en güncel iş ilanları listesi",
+      "url": "https://isilanlarim.org",
+      "numberOfItems": filteredJobs.length,
+      "itemListElement": filteredJobs.slice(0, 10).map((job, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "item": {
+          "@type": "JobPosting",
+          "title": job.title,
+          "description": job.description.substring(0, 100) + "...",
+          "hiringOrganization": {
+            "@type": "Organization",
+            "name": job.company
+          },
+          "jobLocation": job.location,
+          "url": `https://isilanlarim.org${generateJobUrl(job)}`
+        }
+      }))
+    };
 
     // Toast notifications
     if (location.state?.newJobCreated) {
@@ -133,6 +168,8 @@ export function HomePage() {
           onLocationChange={(city) => updateFilters({ city })}
           onCategorySelect={(category) => updateFilters({ category, subCategory: '' })}
           availableCategories={categories}
+          updateFilters={updateFilters}
+          updateFilters={updateFilters}
         />
       </div>
 
@@ -159,12 +196,20 @@ export function HomePage() {
             >
               <Filter className="w-4 h-4" />
               <span>Filtre</span>
+              {hasActiveFilters && (
+                <span className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                  !
+                </span>
+              )}
             </button>
 
             {/* Results Count */}
             <div className="hidden sm:flex items-center text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
               <Briefcase className="w-4 h-4 mr-1" />
               {filteredJobs.length} ilan
+              {isShowingSimilar && (
+                <span className="ml-1 text-yellow-600">*</span>
+              )}
             </div>
           </div>
         </div>
@@ -181,6 +226,11 @@ export function HomePage() {
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
                   {filteredJobs.length} aktif ilan gösteriliyor
+                  {isShowingSimilar && filters.city && (
+                    <span className="text-yellow-600 ml-1">
+                      ({filters.city} benzeri)
+                    </span>
+                  )}
                 </p>
               </div>
               <button
@@ -226,6 +276,14 @@ export function HomePage() {
                     <span className="text-sm text-gray-600">Kategori</span>
                     <span className="font-semibold text-purple-600">{categories.length}</span>
                   </div>
+                  {isShowingSimilar && filters.city && (
+                    <div className="pt-2 border-t border-gray-200">
+                      <div className="text-xs text-yellow-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {filters.city} benzeri gösteriliyor
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -234,6 +292,8 @@ export function HomePage() {
                 <JobFilters
                   filters={filters}
                   onFilterChange={updateFilters}
+                  onClearFilters={clearFilters}
+                  hasActiveFilters={hasActiveFilters}
                   availableCategories={categories}
                 />
               </div>
@@ -252,6 +312,8 @@ export function HomePage() {
               hasMore={hasMore}
               loadMoreJobs={loadMoreJobs}
               loadingMore={loadingMore}
+              isShowingSimilar={isShowingSimilar}
+              onClearFilters={clearFilters}
             />
           </div>
         </div>
@@ -268,6 +330,8 @@ export function HomePage() {
             hasMore={hasMore}
             loadMoreJobs={loadMoreJobs}
             loadingMore={loadingMore}
+            isShowingSimilar={isShowingSimilar}
+            onClearFilters={clearFilters}
           />
         </div>
       </div>
@@ -300,6 +364,11 @@ export function HomePage() {
                   updateFilters(newFilters);
                   setShowMobileFilters(false);
                 }}
+                onClearFilters={() => {
+                  clearFilters();
+                  setShowMobileFilters(false);
+                }}
+                hasActiveFilters={hasActiveFilters}
                 availableCategories={categories}
               />
             </div>
@@ -326,6 +395,8 @@ const MainContent: React.FC<{
   hasMore: boolean;
   loadMoreJobs: () => void;
   loadingMore: boolean;
+  isShowingSimilar?: boolean;
+  onClearFilters?: () => void;
 }> = ({
   loading,
   error,
@@ -335,7 +406,9 @@ const MainContent: React.FC<{
   refetchJobs,
   hasMore,
   loadMoreJobs,
-  loadingMore
+  loadingMore,
+  isShowingSimilar,
+  onClearFilters
 }) => {
   // Loading State
   if (loading && filteredJobs.length === 0) {
@@ -378,12 +451,22 @@ const MainContent: React.FC<{
         </div>
         <h3 className="text-xl font-semibold text-gray-900 mb-2">İlan Bulunamadı</h3>
         <p className="text-gray-600 mb-6">Arama kriterlerinizi değiştirmeyi deneyin.</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Tüm İlanları Göster
-        </button>
+        <div className="space-y-3">
+          {onClearFilters && (
+            <button
+              onClick={onClearFilters}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Filtreleri Temizle
+            </button>
+          )}
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            Sayfayı Yenile
+          </button>
+        </div>
       </div>
     );
   }
@@ -410,6 +493,9 @@ const MainContent: React.FC<{
         hasMore={hasMore}
         loadMoreJobs={loadMoreJobs}
         loadingMore={loadingMore}
+        isShowingSimilar={isShowingSimilar}
+        selectedCity={filters.city}
+        onClearFilters={onClearFilters}
       />
     </div>
   );

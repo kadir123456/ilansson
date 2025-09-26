@@ -147,19 +147,30 @@ export function JobDetailsPage() {
   // Meta tags güncelle
   const updateMetaTags = (job: JobListing) => {
     generateMetaTags({
-      title: `${job.title} - ${job.company} | İş İlanları`,
-      description: job.description.length > 160 
-        ? `${job.description.substring(0, 157)}...`
-        : job.description,
+      title: `${job.title} - ${job.company}, ${job.location} İş İlanı | İsilanlarim.org`,
+      description: `${job.title} pozisyonu için ${job.company} şirketi ${job.location}'da eleman arıyor. ${job.description.substring(0, 100)}... ${job.salary ? `Maaş: ${job.salary}.` : ''} Hemen başvuru yapın!`,
       keywords: [
+        job.title.toLowerCase(),
+        `${job.title.toLowerCase()} iş ilanı`,
+        `${job.title.toLowerCase()} ${job.location.toLowerCase()}`,
+        `${job.location.toLowerCase()} ${job.title.toLowerCase()}`,
+        `${job.company.toLowerCase()} iş ilanları`,
+        `${job.company.toLowerCase()} kariyer`,
         job.category, 
         job.type, 
         job.location, 
-        job.company.toLowerCase(),
         'iş ilanı', 
         'kariyer',
         `${job.location} iş ilanları`,
-        `${job.category} pozisyonu`
+        `${job.location.toLowerCase()} iş fırsatları`,
+        `${job.category} pozisyonu`,
+        'güncel iş ilanları',
+        'iş fırsatları',
+        'eleman ilanları',
+        `${job.location.toLowerCase()} eleman ilanları`,
+        `${job.category} iş ilanları ${job.location.toLowerCase()}`
+        `${job.location.toLowerCase()} iş ara`,
+        `${job.category} iş ilanları`
       ],
       url: window.location.href,
       jobData: job

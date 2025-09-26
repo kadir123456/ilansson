@@ -4,13 +4,22 @@ import {
   Sparkles,
   Zap,
   X,
+  MapPin,
+  Building2,
+  Clock,
+  DollarSign,
+  Crown,
+  Star,
+  Bookmark
 } from 'lucide-react';
 import {
   isToday,
   isYesterday,
   isThisWeek,
+  formatDate,
+  getTimeAgo,
 } from '../../utils/dateUtils';
-import { generateJobUrl, generateSlug } from '../../utils/seoUtils';
+import { generateJobUrl } from '../../utils/seoUtils';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useJobActions } from '../../hooks/useJobActions';
 import { PremiumBadge } from '../premium/PremiumBadge';
@@ -30,6 +39,7 @@ export function JobCard({ job, onDeleted }: JobCardProps) {
   // Premium kontrolü
   const isPremium = job.isPremium && job.premiumEndDate && job.premiumEndDate > Date.now();
   const premiumPackage = job.premiumPackage as 'daily' | 'weekly' | 'monthly' | undefined;
+  
   const handleJobClick = () => {
     // Scroll pozisyonunu kaydet
     sessionStorage.setItem('scrollPosition', window.scrollY.toString());
@@ -42,14 +52,12 @@ export function JobCard({ job, onDeleted }: JobCardProps) {
   };
 
   const handleDeleteClick = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // İlan kartına tıklama olayını engelle
+    e.stopPropagation();
 
     const confirmMessage = `"${job.title}" ilanını silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz.`;
 
     if (window.confirm(confirmMessage)) {
       try {
-        console.log('İlan silme onaylandı:', job.id);
-
         const success = await deleteJob(job.id);
         if (success) {
           toast.success('İlan başarıyla silindi');
@@ -65,86 +73,186 @@ export function JobCard({ job, onDeleted }: JobCardProps) {
   };
 
   // Tarih kontrolleri
-  const isTodayJob = (createdAt: number) => {
-    if (!createdAt || isNaN(createdAt) || createdAt <= 0) return false;
-    return isToday(createdAt);
-  };
-
-  const isYesterdayJob = (createdAt: number) => {
-    if (!createdAt || isNaN(createdAt) || createdAt <= 0) return false;
-    return isYesterday(createdAt);
-  };
-
-  const isRecentJob = (createdAt: number) => {
-    if (!createdAt || isNaN(createdAt) || createdAt <= 0) return false;
-    return (
-      isThisWeek(createdAt) &&
-      !isTodayJob(createdAt) &&
-      !isYesterdayJob(createdAt)
-    );
-  };
+  const isTodayJob = isToday(job.createdAt);
+  const isYesterdayJob = isYesterday(job.createdAt);
+  const isRecentJob = isThisWeek(job.createdAt) && !isTodayJob && !isYesterdayJob;
 
   return (
-    <article
-      className={`job-card group cursor-pointer relative ${
-        isPremium ? 'border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-purple-50' : ''
-      }`}
+    <article 
+      className={`job-card group cursor-pointer relative touch-manipulation ${
+        isPremium ? 'job-card-premium' : ''
+      }`} 
       onClick={handleJobClick}
+      itemScope 
+      itemType="https://schema.org/JobPosting"
     >
-      {/* Admin Silme Butonu */}
-      {isAdmin && (
-        <button
-          onClick={handleDeleteClick}
-          disabled={isDeleting}
-          className="absolute top-3 right-3 z-10 p-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-colors"
-          title="İlanı Sil"
-        >
-          <X className="h-4 w-4" />
-        </button>
+      {/* Premium Top Border */}
+      {isPremium && (
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 rounded-t-xl"></div>
       )}
+      
+      <div className="relative z-10">
+        {/* Admin Delete Button */}
+        {isAdmin && (
+          <button
+            onClick={handleDeleteClick}
+            disabled={isDeleting}
+            className="absolute top-3 right-3 z-20 p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-colors touch-target shadow-sm"
+            title="İlanı Sil"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
 
-      {/* Benzer İlanlar tasarımı - Kompakt görünüm */}
-      <div className="space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <h2 className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors leading-tight flex-1">
-            {job.title}
-          </h2>
+        {/* Card Content */}
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              {/* Company Logo Placeholder */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                  <Building2 className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-bold text-gray-700 mb-1" itemProp="hiringOrganization">{job.company}</div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <MapPin className="h-3 w-3" />
+                    <span itemProp="jobLocation">{job.location}</span>
+                    <span className="text-gray-300">•</span>
+                    <span itemProp="employmentType">{job.type}</span>
+                    {job.salary && (
+                      <>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-green-600 font-bold">{job.salary}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <h2 
+                className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors leading-tight line-clamp-2 mb-3 cursor-pointer"
+                itemProp="title"
+              >
+                {job.title}
+              </h2>
+              
+              {/* CTR artırıcı özellikler */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {job.salary && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                    <DollarSign className="h-3 w-3" />
+                    {job.salary}
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
+                  <Clock className="h-3 w-3" />
+                  HEMEN BAŞVUR
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
+                  <Star className="h-3 w-3" />
+                  SGK + PRİM
+                </span>
+              </div>
+            </div>
 
+            <div className="flex flex-col gap-2 flex-shrink-0 items-end">
+              {/* Premium Badge */}
+              {isPremium && premiumPackage && (
+                <div className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full text-xs font-bold">
+                  <Crown className="h-3 w-3" />
+                  PREMİUM
+                </div>
+              )}
+              
+              {/* Date Badges */}
+              {isTodayJob && (
+                <span className="px-3 py-1 text-xs font-bold bg-red-500 text-white rounded-full flex items-center gap-1 animate-pulse shadow-lg">
+                  <Zap className="h-3 w-3" />
+                  🔥 BUGÜN
+                </span>
+              )}
+              {isYesterdayJob && (
+                <span className="px-3 py-1 text-xs font-bold bg-orange-500 text-white rounded-full flex items-center gap-1 shadow-lg">
+                  <Sparkles className="h-3 w-3" />
+                  ⚡ DÜN
+                </span>
+              )}
+              {isRecentJob && (
+                <span className="px-3 py-1 text-xs font-bold bg-green-500 text-white rounded-full flex items-center gap-1 shadow-lg">
+                  <Star className="h-3 w-3" />
+                  ✨ YENİ
+                </span>
+              )}
+            </div>
+          </div>
           
-          <div className="flex flex-wrap gap-1 flex-shrink-0">
-            {/* Premium rozet */}
-            {isPremium && premiumPackage && (
-              <PremiumBadge packageType={premiumPackage} />
-            )}
+          {/* Description Preview */}
+          <div className="hidden sm:block">
+            <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed font-medium" itemProp="description">
+              {job.description}
+            </p>
+          </div>
+          
+          {/* Bottom Row */}
+          <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-2">
+              {/* Apply Button */}
+              <button className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                🚀 HEMEN BAŞVUR
+              </button>
+              <button className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors shadow-sm">
+                <Bookmark className="h-4 w-4" />
+              </button>
+            </div>
             
-            {/* BUGÜN ETİKETİ */}
-            {isTodayJob(job.createdAt) && (
-              <span className="px-2 py-1 text-xs font-medium bg-red-500 text-white rounded-full flex items-center gap-1 animate-pulse">
-                <Zap className="h-3 w-3" />
-                BUGÜN
-              </span>
-            )}
-            {/* DÜN ETİKETİ */}
-            {isYesterdayJob(job.createdAt) && (
-              <span className="px-2 py-1 text-xs font-medium bg-orange-500 text-white rounded-full flex items-center gap-1">
-                <Sparkles className="h-3 w-3" />
-                DÜN
-              </span>
-            )}
-            {/* YENİ ETİKETİ */}
-            {isRecentJob(job.createdAt) && (
-              <span className="px-2 py-1 text-xs font-medium bg-green-500 text-white rounded-full flex items-center gap-1">
-                <Sparkles className="h-3 w-3" />
-                YENİ
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-full">
+                <Clock className="h-3 w-3 text-blue-600" />
+                <span className="text-xs font-bold text-blue-600">
+                  ACİL
+                </span>
+              </div>
+              {job.salary && (
+              <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full shadow-sm">
+                <DollarSign className="h-3 w-3 text-green-600" />
+                <span className="text-sm font-bold text-green-700">
+                  {job.salary}
+                </span>
+              </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Time Info */}
+          <div className="flex items-center gap-3 text-xs text-gray-500 pt-2">
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span>{formatDate(job.createdAt)}</span>
+            </div>
+            <span className="text-gray-400">•</span>
+            <span>{getTimeAgo(job.createdAt)}</span>
+          </div>
+          
+          {/* Mobile Description */}
+          <div className="sm:hidden">
+            <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
+              {job.description}
+            </p>
+          </div>
+
+          {/* Category Badge */}
+          <div className="flex items-center gap-2 pt-2">
+            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium">
+              {job.category}
+            </span>
+            {job.subCategory && job.subCategory !== 'custom' && (
+              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md text-xs font-medium">
+                {job.subCategory}
               </span>
             )}
           </div>
-        </div>
-        
-        {/* Şehir ve tarih bilgisi - Küçük font */}
-        <div className="flex items-center gap-4 text-xs text-gray-500">
-          <span>{job.location}</span>
-          
         </div>
       </div>
     </article>
